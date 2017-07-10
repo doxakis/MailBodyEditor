@@ -22,7 +22,7 @@ namespace MailBodyEditor
                 "    .CreateBody()" + Environment.NewLine +
                 "    .Paragraph(\"Please confirm your email address by clicking the link below.\")" + Environment.NewLine +
                 "    .Paragraph(\"We may need to send you critical information about our service and it is important that we have an accurate email address.\")" + Environment.NewLine +
-                "    .Button(\"https:/" + " / example.com/\", \"Confirm Email Address\")" + Environment.NewLine +
+                "    .Button(\"https:/" + "/example.com/\", \"Confirm Email Address\")" + Environment.NewLine +
                 "    .Paragraph(\"— [Insert company name here]\")" + Environment.NewLine +
                 "    .ToString(); " + Environment.NewLine;
             textBoxCode.SelectionStart = textBoxCode.TextLength;
