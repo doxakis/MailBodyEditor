@@ -9,94 +9,97 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.CodeAnalysis.CSharp.Scripting;
+using Microsoft.CodeAnalysis.Scripting;
+using System.IO;
+using System.Linq;
 
 namespace MailBodyEditor
 {
     public partial class Form1 : Form
     {
+        Dictionary<string, string> Templates { get; set; }
+        
+        protected override void OnLoad(EventArgs e)
+        {
+            var area = Screen.AllScreens.Length > 1 ? Screen.AllScreens[1].WorkingArea : Screen.PrimaryScreen.WorkingArea;
+            this.Location = new Point((area.Width - this.Width) / 2, (area.Height - this.Height) / 2);
+            base.OnLoad(e);
+        }
+
         public Form1()
         {
             InitializeComponent();
-
-            textBoxCode.Text += "var body = MailBody" + Environment.NewLine +
-                "    .CreateBody()" + Environment.NewLine +
-                "    .Paragraph(\"Please confirm your email address by clicking the link below.\")" + Environment.NewLine +
-                "    .Paragraph(\"We may need to send you critical information about our service and it is important that we have an accurate email address.\")" + Environment.NewLine +
-                "    .Button(\"https:/" + "/example.com/\", \"Confirm Email Address\")" + Environment.NewLine +
-                "    .Paragraph(\"— [Insert company name here]\")" + Environment.NewLine +
-                "    .ToString(); " + Environment.NewLine;
+            
+            Templates = GetTemplates().ToDictionary(m => m, m => m);
+            comboBoxQuickTemplate.DataSource = new BindingSource(Templates, null);
+            comboBoxQuickTemplate.DisplayMember = "Value";
+            comboBoxQuickTemplate.ValueMember = "Key";
+            
             textBoxCode.SelectionStart = textBoxCode.TextLength;
             textBoxCode.ScrollToCaret();
         }
 
-        private void textBoxCode_TextChanged(object sender, EventArgs e)
+        private async void textBoxCode_TextChangedAsync(object sender, EventArgs e)
         {
-            var results = CompileCsharpCode(textBoxCode.Text);
-
             StringBuilder builder = new StringBuilder();
-
-            if (results.Errors.HasErrors)
+            try
             {
-                foreach (CompilerError item in results.Errors)
-                {
-                    builder.Append(!item.IsWarning ? "<span style='color:red'>" : "<span style='color:orange'>")
-                        .Append(item.ErrorText)
-                        .Append("</span>")
-                        .Append("<br />");
-                }
-            }
-            else
-            {
-                builder.Append(RunCSharpCode(results));
-            }
+                var projectDir = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.FullName;
+                var header = File.ReadAllText(projectDir + "/Templates/_Header.txt");
+                var footer = File.ReadAllText(projectDir + "/Templates/_Footer.txt");
+                var sourceCode = header + textBoxCode.Text + footer;
 
+                builder.Append(await CSharpScript.EvaluateAsync(sourceCode,
+                    ScriptOptions.Default.WithReferences(typeof(MailBodyPack.MailBody).Assembly)));
+            }
+            catch (CompilationErrorException ex)
+            {
+                builder.Append(string.Join("<br />", ex.Diagnostics));
+            }
             previewBox.DocumentText = "<html><body>" +
                 builder.ToString() +
                 "</body></html>";
         }
-
-        public static CompilerResults CompileCsharpCode(string function)
-        {
-            string code = @"
-                using System;
-                using MailBodyPack;
-                namespace UserFunctions
-                {
-                    public class MyFunction
-                    {
-                        public static string Function()
-                        {
-                            myfunc;
-                            return body;
-                        }
-                    }
-                }
-            ";
-            
-            string finalCode = code.Replace("myfunc", function);
-            CSharpCodeProvider provider = new CSharpCodeProvider();
-            CompilerParameters compilerParameters = new CompilerParameters();
-            compilerParameters.GenerateInMemory = true;
-            compilerParameters.ReferencedAssemblies.Add("System.dll");
-            compilerParameters.ReferencedAssemblies.Add("System.Linq.dll");
-            compilerParameters.ReferencedAssemblies.Add("System.Core.dll");
-            compilerParameters.ReferencedAssemblies.Add("MailBody.dll");
-            CompilerResults results = provider.CompileAssemblyFromSource(compilerParameters, finalCode);
-            return results;
-        }
         
-        public static string RunCSharpCode(CompilerResults results)
+        private IEnumerable<string> GetTemplates()
         {
-            Type myType = results.CompiledAssembly.GetType("UserFunctions.MyFunction");
-            try
+            var projectDir = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.FullName;
+            return Directory.EnumerateFiles(projectDir + "/Templates")
+                .Select(m => Path.GetFileNameWithoutExtension(m))
+                .Where(m => !m.StartsWith("_"));
+        }
+
+        private void comboBoxQuickTemplate_SelectionChanged(object sender, EventArgs e)
+        {
+            var selectedText = (comboBoxQuickTemplate.Text);
+
+            selectedText = selectedText.Replace("[", "");
+            selectedText = selectedText.Replace("]", "");
+            selectedText = selectedText.Split(',')[0].Trim();
+
+            if (GetTemplates().Contains(selectedText))
             {
-                var result = myType.GetMethod("Function").Invoke(null, new object[] { }).ToString();
-                return result;
+                // Seem legit.
+                var projectDir = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.FullName;
+                var template = File.ReadAllText(projectDir + "/Templates/" + selectedText + ".txt");
+                textBoxCode.Text = template;
             }
-            catch (Exception ex)
-            {
-                return ex.Message;
-            }
+        }
+
+        private void btnSave_Click(object sender, EventArgs e)
+        {
+            // Create or save on template folder
+        }
+
+        private void saveAs_Click(object sender, EventArgs e)
+        {
+            // Save as (create)
+        }
+
+        private void btnRemove_Click(object sender, EventArgs e)
+        {
+            // Remove
         }
     }
 }
