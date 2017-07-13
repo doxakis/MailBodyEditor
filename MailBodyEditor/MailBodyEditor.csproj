@@ -185,7 +185,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Templates\Another way to create your email.txt" />
-    <Content Include="Templates\Override the default template.txt" />
     <Content Include="Templates\_Footer.txt" />
     <Content Include="Templates\_Header.txt" />
     <Content Include="Templates\With image.txt" />

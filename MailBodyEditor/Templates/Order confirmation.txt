@@ -6,7 +6,7 @@ var products = new string[] {
 
 // Format product display.
 var items = products.Select(item => MailBody.CreateBlock().Text(item));
-            
+
 var body = MailBody
     .CreateBody()
     .Title("Confirmation of your order")
