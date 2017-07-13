@@ -1,4 +1,8 @@
-﻿var products = new string[] { "1 x Product A", "2 x Product B", "3 x Product C" };
+var products = new string[] {
+	"1 x Product A",
+	"2 x Product B",
+	"3 x Product C"
+};
 
 // Format product display.
 var items = products.Select(item => MailBody.CreateBlock().Text(item));
