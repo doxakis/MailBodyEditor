@@ -22,6 +22,7 @@ namespace MailBodyEditor
         
         protected override void OnLoad(EventArgs e)
         {
+            // Handle multiple screens.
             var area = Screen.AllScreens.Length > 1 ? Screen.AllScreens[1].WorkingArea : Screen.PrimaryScreen.WorkingArea;
             this.Location = new Point((area.Width - this.Width) / 2, (area.Height - this.Height) / 2);
             base.OnLoad(e);
@@ -31,11 +32,13 @@ namespace MailBodyEditor
         {
             InitializeComponent();
             
+            // Load templates from directory.
             Templates = GetTemplates().ToDictionary(m => m, m => m);
             comboBoxQuickTemplate.DataSource = new BindingSource(Templates, null);
             comboBoxQuickTemplate.DisplayMember = "Value";
             comboBoxQuickTemplate.ValueMember = "Key";
             
+            // Get ready to work.
             textBoxCode.SelectionStart = textBoxCode.TextLength;
             textBoxCode.ScrollToCaret();
         }
@@ -45,9 +48,9 @@ namespace MailBodyEditor
             StringBuilder builder = new StringBuilder();
             try
             {
-                var projectDir = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.FullName;
-                var header = File.ReadAllText(projectDir + "/Templates/_Header.txt");
-                var footer = File.ReadAllText(projectDir + "/Templates/_Footer.txt");
+                var mainDir = GetMainDirectory();
+                var header = File.ReadAllText(mainDir + "/Templates/_Header.txt");
+                var footer = File.ReadAllText(mainDir + "/Templates/_Footer.txt");
                 var sourceCode = header + textBoxCode.Text + footer;
 
                 builder.Append(await CSharpScript.EvaluateAsync(sourceCode,
@@ -55,17 +58,21 @@ namespace MailBodyEditor
             }
             catch (CompilationErrorException ex)
             {
-                builder.Append(string.Join("<br />", ex.Diagnostics));
+                builder.Append("<span style='color:red'>" + string.Join("<br />", ex.Diagnostics) + "</span>");
             }
-            previewBox.DocumentText = "<html><body>" +
-                builder.ToString() +
-                "</body></html>";
+
+            previewBox.DocumentText = builder.ToString();
         }
-        
+
+        private static string GetMainDirectory()
+        {
+            return Directory.GetParent(Directory.GetCurrentDirectory()).Parent.FullName;
+        }
+
         private IEnumerable<string> GetTemplates()
         {
-            var projectDir = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.FullName;
-            return Directory.EnumerateFiles(projectDir + "/Templates")
+            var mainDir = GetMainDirectory();
+            return Directory.EnumerateFiles(mainDir + "/Templates")
                 .Select(m => Path.GetFileNameWithoutExtension(m))
                 .Where(m => !m.StartsWith("_"));
         }
@@ -74,6 +81,7 @@ namespace MailBodyEditor
         {
             var selectedText = (comboBoxQuickTemplate.Text);
 
+            // Quick fix on load: The text is not well formatted.
             selectedText = selectedText.Replace("[", "");
             selectedText = selectedText.Replace("]", "");
             selectedText = selectedText.Split(',')[0].Trim();
@@ -81,8 +89,8 @@ namespace MailBodyEditor
             if (GetTemplates().Contains(selectedText))
             {
                 // Seem legit.
-                var projectDir = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.FullName;
-                var template = File.ReadAllText(projectDir + "/Templates/" + selectedText + ".txt");
+                var mainDir = GetMainDirectory();
+                var template = File.ReadAllText(mainDir + "/Templates/" + selectedText + ".txt");
                 textBoxCode.Text = template;
             }
         }
